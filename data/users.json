@@ -1,0 +1,25 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "name": "Admin User",
+      "email": "admin",
+      "password": "admin",
+      "role": "admin",
+      "country": "India",
+      "manager": "",
+      "manager_email": ""
+    },
+    {
+      "id": "2",
+      "name": "Bhargav",
+      "email": "bhargav",
+      "password": "BNG",
+      "role": "user",
+      "country": "India",
+      "manager": "Admin User",
+      "manager_email": "admin"
+    }
+  ]
+}
+
