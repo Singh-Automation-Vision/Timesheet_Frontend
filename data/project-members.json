@@ -1,0 +1,27 @@
+[
+  {
+    "projectId": "Car Wash Automation",
+    "employee_name": "Sudharshan",
+    "designation": "Machine Vision Engineer",
+    "hours": 5
+  },
+  {
+    "projectId": "Car Wash Automation",
+    "employee_name": "Bhargav",
+    "designation": "Machine Vision Engineer",
+    "hours": 1
+  },
+  {
+    "projectId": "Timesheet",
+    "employee_name": "Alice Williams",
+    "designation": "Full Stack Developer",
+    "hours": 40
+  },
+  {
+    "projectId": "Timesheet",
+    "employee_name": "David Brown",
+    "designation": "QA Engineer",
+    "hours": 28
+  }
+]
+

@@ -1,0 +1,31 @@
+{
+  "success": true,
+  "project": {
+    "projectNumber": "S-700-575",
+    "projectName": "Car Wash Automation",
+    "startDate": "2025-03-03",
+    "endDate": "2025-03-31"
+  },
+  "members": [
+    {
+      "projectId": "Car Wash Automation",
+      "employee_name": "Sudharshan",
+      "designation": "Machine Vision Engineer",
+      "hours": 5
+    },
+    {
+      "projectId": "Car Wash Automation",
+      "employee_name": "Bhargav",
+      "designation": "Machine Vision Engineer",
+      "hours": 1
+    },
+    {
+      "projectId": "Car Wash Automation",
+      "employee_name": "Rahul",
+      "designation": "Software Developer",
+      "hours": 8
+    }
+  ],
+  "total_hours": 14
+}
+

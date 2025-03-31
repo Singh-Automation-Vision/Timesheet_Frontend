@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
-import { Loader2 } from "lucide-react"
+import { Loader2, X } from "lucide-react"
 import { API_BASE_URL } from "@/lib/api-config"
 import { useAuth } from "@/lib/auth-context"
 
@@ -29,6 +29,9 @@ export default function TimesheetPage() {
   const [country, setCountry] = useState<CountryType>("USA")
   const { toast } = useToast()
   const { user } = useAuth()
+
+  const [projects, setProjects] = useState<Array<{ id?: string; projectNumber: string; projectName: string }>>([])
+  const [selectedProjects, setSelectedProjects] = useState<Record<string, string[]>>({})
 
   // Define hours for each country
   const countryHours = {
@@ -191,6 +194,50 @@ export default function TimesheetPage() {
     fetchTimesheetData()
   }, [user, toast])
 
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        console.log("Fetching projects from API...")
+        const response = await fetch(`${API_BASE_URL}/api/projectslist`)
+
+        if (response.ok) {
+          const data = await response.json()
+          console.log("Raw projects data received:", data)
+
+          // Handle the case where data.data is an array of strings
+          if (data.success && Array.isArray(data.data)) {
+            console.log("Projects list:", data.data)
+
+            // Check if the array contains strings
+            if (data.data.length > 0 && typeof data.data[0] === "string") {
+              // Convert string array to project objects
+              const formattedProjects = data.data.map((projectName) => ({
+                id: projectName,
+                projectNumber: projectName,
+                projectName: projectName,
+              }))
+              setProjects(formattedProjects)
+              console.log("Converted string array to project objects:", formattedProjects)
+            } else {
+              // It's already an array of objects
+              setProjects(data.data)
+            }
+
+            console.log("Number of projects loaded:", data.data.length)
+          } else {
+            console.log("Invalid projects data format:", data)
+          }
+        } else {
+          console.log("Failed to fetch projects. Status:", response.status)
+        }
+      } catch (error) {
+        console.error("Error fetching projects:", error)
+      }
+    }
+
+    fetchProjects()
+  }, [])
+
   const handleTaskChange = (hour: string, description: string) => {
     console.log(`Setting description for ${hour}: "${description}"`)
     setTasks((prev) => {
@@ -221,6 +268,50 @@ export default function TimesheetPage() {
     if (country !== newCountry) {
       setCountry(newCountry)
     }
+  }
+
+  const handleAddProject = (hour: string, projectId: string) => {
+    if (!projectId) return
+
+    setSelectedProjects((prev) => {
+      const hourProjects = [...(prev[hour] || [])]
+
+      // Check if project is already selected
+      if (hourProjects.includes(projectId)) return prev
+
+      // Check if we already have 3 projects
+      if (hourProjects.length >= 3) return prev
+
+      // Add the new project
+      hourProjects.push(projectId)
+
+      return {
+        ...prev,
+        [hour]: hourProjects,
+      }
+    })
+  }
+
+  const handleRemoveProject = (hour: string, projectId: string) => {
+    setSelectedProjects((prev) => {
+      const hourProjects = [...(prev[hour] || [])]
+      const index = hourProjects.indexOf(projectId)
+
+      if (index !== -1) {
+        hourProjects.splice(index, 1)
+      }
+
+      return {
+        ...prev,
+        [hour]: hourProjects,
+      }
+    })
+  }
+
+  // Function to get project name from ID
+  const getProjectName = (projectId: string) => {
+    const project = projects.find((p) => p.id === projectId)
+    return project ? project.projectName : projectId
   }
 
   const handleSubmit = async () => {
@@ -267,15 +358,28 @@ export default function TimesheetPage() {
         }
       } else {
         // For PM submission, format data according to the expected structure
-        // Include both regular hours and overtime hours
         const hoursArray = Object.entries(tasks)
           .filter(([hour, task]) => (hours.includes(hour) || extraHours.includes(hour)) && task.description)
-          .map(([hour, task]) => ({
-            hour,
-            task: task.description,
-            progress: task.status || undefined,
-            comments: task.comment || "",
-          }))
+          .map(([hour, task]) => {
+            // Get the selected projects for this hour
+            const hourProjects = selectedProjects[hour] || []
+
+            // Create the projects object with only the selected projects
+            const projects: Record<string, string> = {}
+            hourProjects.forEach((projectId, index) => {
+              if (projectId) {
+                projects[index.toString()] = projectId
+              }
+            })
+
+            return {
+              hour,
+              task: task.description,
+              progress: task.status || undefined,
+              comments: task.comment || "",
+              projects: Object.keys(projects).length > 0 ? projects : undefined,
+            }
+          })
 
         // Format data according to the structure expected by the API
         const data = {
@@ -427,13 +531,55 @@ export default function TimesheetPage() {
             </div>
           ) : (
             // PM Section
-            <div className="grid grid-cols-[80px_1fr_auto_1fr] gap-x-4 gap-y-6 items-center pt-4">
+            <div className="grid grid-cols-[80px_2fr_1fr_auto_1fr] gap-x-3 gap-y-6 items-center pt-4">
               {/* Regular hours */}
               {hours.map((hour) => (
                 <div key={hour} className="mt-1 contents">
                   <div className="py-2 font-medium text-black text-sm flex items-center justify-end pr-2">{hour}</div>
-                  <div className="py-2 text-gray-700 text-sm truncate flex items-center">
-                    {tasks[hour]?.description || "No task entered"}
+                  <div className="py-2 text-gray-700 text-sm flex items-center">
+                    <div className="min-h-[2.5rem] whitespace-pre-wrap break-words">
+                      {tasks[hour]?.description || "No task entered"}
+                    </div>
+                  </div>
+                  <div className="py-2">
+                    {/* Selected project tags */}
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {(selectedProjects[hour] || []).map((projectId, index) => (
+                        <div
+                          key={index}
+                          className="bg-[#e6f7e6] text-black text-xs px-2 py-1 rounded-md flex items-center group"
+                        >
+                          <span>{getProjectName(projectId)}</span>
+                          <button
+                            onClick={() => handleRemoveProject(hour, projectId)}
+                            className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            aria-label="Remove project"
+                          >
+                            <X size={14} className="text-gray-600 hover:text-red-500" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Project dropdown */}
+                    <select
+                      className="w-full border border-[#D1D1D1] rounded-md py-1 text-sm"
+                      value=""
+                      onChange={(e) => {
+                        handleAddProject(hour, e.target.value)
+                        e.target.value = "" // Reset dropdown after selection
+                      }}
+                      disabled={(selectedProjects[hour] || []).length >= 3}
+                    >
+                      <option value="">
+                        {(selectedProjects[hour] || []).length >= 3 ? "Max 3 projects selected" : "Select Project"}
+                      </option>
+                      {projects.map((project, idx) => (
+                        <option key={idx} value={project.id}>
+                          {project.projectName}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="flex gap-1 items-center justify-center">
                     {(["Green", "Yellow", "Red"] as const).map((status) => (
@@ -455,7 +601,7 @@ export default function TimesheetPage() {
                     placeholder="Add comments..."
                     value={tasks[hour]?.comment || ""}
                     onChange={(e) => handleCommentChange(hour, e.target.value)}
-                    className="w-full border-[#D1D1D1] rounded-md text-xs resize-none p-1 h-6"
+                    className="w-full border-[#D1D1D1] rounded-md text-xs resize-none p-1 h-6 max-w-[200px]"
                     rows={1}
                   />
                 </div>
@@ -472,6 +618,46 @@ export default function TimesheetPage() {
                     onChange={(e) => handleTaskChange(hour, e.target.value)}
                     className="w-full border-[#D1D1D1] rounded-md py-2 text-sm"
                   />
+                  <div className="py-2">
+                    {/* Selected project tags */}
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {(selectedProjects[hour] || []).map((projectId, index) => (
+                        <div
+                          key={index}
+                          className="bg-[#e6f7e6] text-black text-xs px-2 py-1 rounded-md flex items-center group"
+                        >
+                          <span>{getProjectName(projectId)}</span>
+                          <button
+                            onClick={() => handleRemoveProject(hour, projectId)}
+                            className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            aria-label="Remove project"
+                          >
+                            <X size={14} className="text-gray-600 hover:text-red-500" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Project dropdown */}
+                    <select
+                      className="w-full border border-[#D1D1D1] rounded-md py-1 text-sm"
+                      value=""
+                      onChange={(e) => {
+                        handleAddProject(hour, e.target.value)
+                        e.target.value = "" // Reset dropdown after selection
+                      }}
+                      disabled={(selectedProjects[hour] || []).length >= 3}
+                    >
+                      <option value="">
+                        {(selectedProjects[hour] || []).length >= 3 ? "Max 3 projects selected" : "Select Project"}
+                      </option>
+                      {projects.map((project, idx) => (
+                        <option key={idx} value={project.id}>
+                          {project.projectName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="flex gap-1 items-center justify-center">
                     {(["Green", "Yellow", "Red"] as const).map((status) => (
                       <button
@@ -492,7 +678,7 @@ export default function TimesheetPage() {
                     placeholder="Add comments..."
                     value={tasks[hour]?.comment || ""}
                     onChange={(e) => handleCommentChange(hour, e.target.value)}
-                    className="w-full border-[#D1D1D1] rounded-md text-xs resize-none p-1 h-6"
+                    className="w-full border-[#D1D1D1] rounded-md text-xs resize-none p-1 h-6 max-w-[200px]"
                     rows={1}
                   />
                 </div>

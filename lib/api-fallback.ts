@@ -41,14 +41,23 @@ export async function fallbackLogin(email: string, password: string) {
 // Function to determine if we should use fallback
 export async function shouldUseFallback() {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/login`, {
+    // Use AbortController to set a timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+
+    const response = await fetch(`${API_BASE_URL}/health`, {
       method: "HEAD",
-      mode: "no-cors",
-      cache: "no-cache",
+      mode: "cors",
+      cache: "no-store",
+      signal: controller.signal,
     })
-    return false // API seems accessible
+
+    clearTimeout(timeoutId)
+
+    // If we get any response, the API is accessible
+    return false
   } catch (error) {
-    console.warn("API appears to be inaccessible, using fallback mode")
+    console.warn("API appears to be inaccessible, using fallback mode:", error)
     return true // Use fallback
   }
 }
