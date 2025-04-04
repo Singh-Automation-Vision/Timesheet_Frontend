@@ -350,13 +350,13 @@ export default function ProjectManagement() {
             <Edit className="h-4 w-4" />
             Edit Project
           </Button>
-          <Button onClick={() => setMode("remove")} variant="destructive" className="flex items-center gap-2">
-            <Trash2 className="h-4 w-4" />
-            Remove Project
-          </Button>
           <Button onClick={() => setMode("view")} variant="outline" className="flex items-center gap-2">
             <Eye className="h-4 w-4" />
             View Projects
+          </Button>
+          <Button onClick={() => setMode("remove")} variant="destructive" className="flex items-center gap-2">
+            <Trash2 className="h-4 w-4" />
+            Remove Project
           </Button>
         </div>
       )}

@@ -215,7 +215,7 @@ export default function Login() {
             {apiStatus === "offline" && (
               <div className="mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded-md flex items-center text-yellow-800">
                 <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
-                <span className="text-xs">API server appears to be offline. Using secure fallback authentication.</span>
+                <span className="text-xs">Server is starting. Refresh in a few seconds.</span>
               </div>
             )}
             <form onSubmit={handleLogin} className="space-y-3">
@@ -259,7 +259,9 @@ export default function Login() {
               {errorMessage && <div className="text-red-500 text-sm py-1">{errorMessage}</div>}
               {useFallback && (
                 <div className="text-xs text-gray-500 mb-2">
-                  <p>API server appears to be offline. Authentication will be attempted via secure fallback.</p>
+                  <p>
+                    Server is starting. Refresh in a few seconds. Authentication will be attempted via secure fallback.
+                  </p>
                 </div>
               )}
               <Button type="submit" className="w-full py-1 text-sm" disabled={isLoading}>

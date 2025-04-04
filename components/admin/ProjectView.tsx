@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, ArrowLeft, Calendar } from "lucide-react"
+import { Loader2, ArrowLeft, CalendarIcon } from "lucide-react"
 import { API_BASE_URL } from "@/lib/api-config"
 import { useToast } from "@/components/ui/use-toast"
+import DatePicker from "@/components/DatePicker"
 
 interface Project {
   id?: string
@@ -18,7 +19,7 @@ interface Project {
 }
 
 interface ProjectMember {
-  employee_name: string // Changed from name to employee_name
+  employee_name: string
   designation: string
   hours: number
 }
@@ -26,7 +27,7 @@ interface ProjectMember {
 interface ProjectDetails {
   project: Project
   members: ProjectMember[]
-  total_hours?: number // Added to handle the total_hours in the response
+  total_hours?: number
 }
 
 export default function ProjectView({ onBack }: { onBack: () => void }) {
@@ -36,6 +37,10 @@ export default function ProjectView({ onBack }: { onBack: () => void }) {
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingProjects, setIsLoadingProjects] = useState(false)
   const { toast } = useToast()
+
+  // Date state
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
 
   // Fetch projects list
   const fetchProjects = async () => {
@@ -90,37 +95,35 @@ export default function ProjectView({ onBack }: { onBack: () => void }) {
 
       console.log("Fetching details for project:", selectedProject.projectName)
 
-      // Make the API call to get project details
-      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/details`)
+      // Construct the API URL with the project ID and dates if provided
+      let apiUrl = `${API_BASE_URL}/api/projects/${projectId}/details`
+
+      // Add date parameters to the URL if they exist
+      if (startDate && endDate) {
+        apiUrl = `${API_BASE_URL}/api/projects/${projectId}/details/${startDate}/${endDate}`
+      }
+
+      console.log("Project details API URL:", apiUrl)
+      const response = await fetch(apiUrl)
 
       if (!response.ok) {
         throw new Error(`Failed to fetch project details: ${response.status} ${response.statusText}`)
       }
 
-      const data = await response.json()
-      console.log("Project details received:", data)
+      const responseData = await response.json()
+      console.log("Project details received:", responseData)
 
-      if (!data.success) {
-        throw new Error(data.error || "Failed to fetch project details")
+      if (!responseData.success) {
+        throw new Error(responseData.error || "Failed to fetch project details")
       }
 
-      // Handle the special format where members is a tuple with array and total_hours
-      let members = []
-      let totalHours = 0
-
-      if (Array.isArray(data.members)) {
-        // If members is a regular array
-        members = data.members
-      } else if (data.members && Array.isArray(data.members[0])) {
-        // If members is a tuple with [array, total_hours]
-        members = data.members[0]
-        totalHours = data.members[1]?.total_hours || 0
-      }
+      // Handle the new API response structure
+      const data = responseData.data
 
       setProjectDetails({
-        project: data.project,
-        members: members,
-        total_hours: totalHours || data.total_hours,
+        project: data.project_details,
+        members: data.employees || [],
+        total_hours: data.total_project_hours || 0,
       })
     } catch (error) {
       console.error("Error fetching project details:", error)
@@ -140,9 +143,7 @@ export default function ProjectView({ onBack }: { onBack: () => void }) {
   }, [])
 
   useEffect(() => {
-    if (selectedProjectId) {
-      fetchProjectDetails(selectedProjectId)
-    } else {
+    if (!selectedProjectId) {
       setProjectDetails(null)
     }
   }, [selectedProjectId])
@@ -153,10 +154,15 @@ export default function ProjectView({ onBack }: { onBack: () => void }) {
 
   // Format date for display
   const formatDate = (dateString: string) => {
-    if (!dateString) return "N/A"
+    if (!dateString || !dateString.match(/^\d{2}-\d{2}-\d{4}$/)) {
+      return dateString || "N/A" // Return as is if not in expected format or empty
+    }
 
     try {
-      const date = new Date(dateString)
+      // Parse MM-DD-YYYY format
+      const [month, day, year] = dateString.split("-").map(Number)
+      const date = new Date(year, month - 1, day)
+
       return date.toLocaleDateString("en-US", {
         year: "numeric",
         month: "short",
@@ -165,6 +171,17 @@ export default function ProjectView({ onBack }: { onBack: () => void }) {
     } catch (e) {
       return dateString // Return the original string if parsing fails
     }
+  }
+
+  // Format date for API (YYYY-MM-DD)
+  const formatDateForAPI = (dateString: string) => {
+    if (!dateString || !dateString.match(/^\d{2}-\d{2}-\d{4}$/)) {
+      return dateString // Return as is if not in expected format or empty
+    }
+
+    // Convert from MM-DD-YYYY to YYYY-MM-DD
+    const [month, day, year] = dateString.split("-")
+    return `${year}-${month}-${day}`
   }
 
   return (
@@ -182,16 +199,45 @@ export default function ProjectView({ onBack }: { onBack: () => void }) {
           <label className="block text-sm font-medium text-gray-700 mb-1">Select Project</label>
           <Select value={selectedProjectId} onValueChange={setSelectedProjectId} disabled={isLoadingProjects}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select a project" />
+              <SelectValue placeholder={isLoadingProjects ? "Loading projects..." : "Select a project"} />
             </SelectTrigger>
-            <SelectContent>
-              {projects.map((project) => (
-                <SelectItem key={project.id || project.projectNumber} value={project.id || project.projectName}>
-                  {project.projectName}
-                </SelectItem>
-              ))}
+            <SelectContent className="max-h-[200px] overflow-y-auto">
+              {projects.length > 0 ? (
+                projects.map((project) => (
+                  <SelectItem key={project.id || project.projectNumber} value={project.id || project.projectName}>
+                    {project.projectName}
+                  </SelectItem>
+                ))
+              ) : (
+                <div className="px-2 py-4 text-center text-sm text-gray-500">No projects available</div>
+              )}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          {/* Start Date */}
+          <DatePicker value={startDate} onChange={setStartDate} label="Start Date (MM-DD-YYYY)" />
+
+          {/* End Date */}
+          <DatePicker value={endDate} onChange={setEndDate} label="End Date (MM-DD-YYYY)" />
+        </div>
+
+        <div className="mt-4">
+          <Button
+            onClick={() => fetchProjectDetails(selectedProjectId)}
+            disabled={!selectedProjectId || isLoading}
+            className="w-full md:w-auto"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Loading...
+              </>
+            ) : (
+              "View Details"
+            )}
+          </Button>
         </div>
 
         {isLoading ? (
@@ -215,20 +261,24 @@ export default function ProjectView({ onBack }: { onBack: () => void }) {
                 </div>
               </div>
 
-              {/* Added Start Date and End Date */}
+              {/* Start Date and End Date */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-start gap-2">
-                  <Calendar className="h-5 w-5 text-gray-500 mt-0.5" />
+                  <CalendarIcon className="h-5 w-5 text-gray-500 mt-0.5" />
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">Start Date</h3>
-                    <p className="text-base font-medium">{formatDate(projectDetails.project.startDate)}</p>
+                    <p className="text-base font-medium">
+                      {startDate ? formatDate(startDate) : formatDate(projectDetails.project.startDate)}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
-                  <Calendar className="h-5 w-5 text-gray-500 mt-0.5" />
+                  <CalendarIcon className="h-5 w-5 text-gray-500 mt-0.5" />
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">End Date</h3>
-                    <p className="text-base font-medium">{formatDate(projectDetails.project.endDate)}</p>
+                    <p className="text-base font-medium">
+                      {endDate ? formatDate(endDate) : formatDate(projectDetails.project.endDate)}
+                    </p>
                   </div>
                 </div>
               </div>

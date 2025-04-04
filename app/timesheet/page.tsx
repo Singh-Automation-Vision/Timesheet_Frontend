@@ -35,18 +35,7 @@ export default function TimesheetPage() {
 
   // Define hours for each country
   const countryHours = {
-    USA: [
-      "8:00 AM",
-      "9:00 AM",
-      "10:00 AM",
-      "11:00 AM",
-      "12:00 PM",
-      "1:00 PM",
-      "2:00 PM",
-      "3:00 PM",
-      "4:00 PM",
-      "5:00 PM",
-    ],
+    USA: ["8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM"],
     IND: ["11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM", "7:00 PM"],
   }
 
@@ -531,12 +520,12 @@ export default function TimesheetPage() {
             </div>
           ) : (
             // PM Section
-            <div className="grid grid-cols-[80px_2fr_1fr_auto_1fr] gap-x-3 gap-y-6 items-center pt-4">
+            <div className="grid grid-cols-[120px_2fr_1fr_auto_1fr] gap-x-4 gap-y-6 items-start pt-4">
               {/* Regular hours */}
               {hours.map((hour) => (
                 <div key={hour} className="mt-1 contents">
-                  <div className="py-2 font-medium text-black text-sm flex items-center justify-end pr-2">{hour}</div>
-                  <div className="py-2 text-gray-700 text-sm flex items-center">
+                  <div className="py-2 font-medium text-black text-sm flex items-center justify-end pr-4">{hour}</div>
+                  <div className="py-2 text-gray-700 text-sm">
                     <div className="min-h-[2.5rem] whitespace-pre-wrap break-words">
                       {tasks[hour]?.description || "No task entered"}
                     </div>
@@ -581,7 +570,7 @@ export default function TimesheetPage() {
                       ))}
                     </select>
                   </div>
-                  <div className="flex gap-1 items-center justify-center">
+                  <div className="flex gap-1 items-center justify-center py-2">
                     {(["Green", "Yellow", "Red"] as const).map((status) => (
                       <button
                         key={status}
@@ -601,7 +590,7 @@ export default function TimesheetPage() {
                     placeholder="Add comments..."
                     value={tasks[hour]?.comment || ""}
                     onChange={(e) => handleCommentChange(hour, e.target.value)}
-                    className="w-full border-[#D1D1D1] rounded-md text-xs resize-none p-1 h-6 max-w-[200px]"
+                    className="w-full border-[#D1D1D1] rounded-md text-xs resize-none p-2 h-10 max-w-[200px]"
                     rows={1}
                   />
                 </div>
@@ -610,7 +599,7 @@ export default function TimesheetPage() {
               {/* Overtime hours - with editable description */}
               {extraHours.map((hour) => (
                 <div key={hour} className="mt-1 contents">
-                  <div className="py-2 font-medium text-black text-sm flex items-center justify-end pr-2">{hour}</div>
+                  <div className="py-2 font-medium text-black text-sm flex items-center justify-end pr-4">{hour}</div>
                   <Input
                     type="text"
                     placeholder="Enter overtime task"
@@ -658,7 +647,7 @@ export default function TimesheetPage() {
                       ))}
                     </select>
                   </div>
-                  <div className="flex gap-1 items-center justify-center">
+                  <div className="flex gap-1 items-center justify-center py-2">
                     {(["Green", "Yellow", "Red"] as const).map((status) => (
                       <button
                         key={status}
@@ -678,7 +667,7 @@ export default function TimesheetPage() {
                     placeholder="Add comments..."
                     value={tasks[hour]?.comment || ""}
                     onChange={(e) => handleCommentChange(hour, e.target.value)}
-                    className="w-full border-[#D1D1D1] rounded-md text-xs resize-none p-1 h-6 max-w-[200px]"
+                    className="w-full border-[#D1D1D1] rounded-md text-xs resize-none p-2 h-10 max-w-[200px]"
                     rows={1}
                   />
                 </div>

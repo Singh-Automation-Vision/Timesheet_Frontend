@@ -2,16 +2,17 @@
 
 import type React from "react"
 
-import { useState, useRef, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, CalendarIcon, User, ChevronLeft, ChevronRight, Download } from "lucide-react"
+import { Loader2, User, ChevronLeft, ChevronRight, Download } from "lucide-react"
 import { API_BASE_URL } from "@/lib/api-config"
 import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
+import DatePicker from "@/components/DatePicker"
 
 // AM Timesheet Entry Interface
 interface AMEntry {
@@ -93,18 +94,6 @@ export default function TimesheetViewPage() {
   const [pmData, setPMData] = useState<PMTimesheetResponse | null>(null)
   const [matrixData, setMatrixData] = useState<MatrixResponse | null>(null)
 
-  // Calendar states
-  const [showStartCalendar, setShowStartCalendar] = useState(false)
-  const [showEndCalendar, setShowEndCalendar] = useState(false)
-  const [showMatrixStartCalendar, setShowMatrixStartCalendar] = useState(false)
-  const [showMatrixEndCalendar, setShowMatrixEndCalendar] = useState(false)
-
-  // Refs
-  const startCalendarRef = useRef<HTMLDivElement>(null)
-  const endCalendarRef = useRef<HTMLDivElement>(null)
-  const matrixStartCalendarRef = useRef<HTMLDivElement>(null)
-  const matrixEndCalendarRef = useRef<HTMLDivElement>(null)
-
   // Toast
   const { toast } = useToast()
 
@@ -114,29 +103,6 @@ export default function TimesheetViewPage() {
   const [matrixCurrentPage, setMatrixCurrentPage] = useState(0)
   const entriesPerPage = 3
 
-  // Close calendars when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (startCalendarRef.current && !startCalendarRef.current.contains(event.target as Node)) {
-        setShowStartCalendar(false)
-      }
-      if (endCalendarRef.current && !endCalendarRef.current.contains(event.target as Node)) {
-        setShowEndCalendar(false)
-      }
-      if (matrixStartCalendarRef.current && !matrixStartCalendarRef.current.contains(event.target as Node)) {
-        setShowMatrixStartCalendar(false)
-      }
-      if (matrixEndCalendarRef.current && !matrixEndCalendarRef.current.contains(event.target as Node)) {
-        setShowMatrixEndCalendar(false)
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-    }
-  }, [])
-
   const formatDateForDisplay = (inputDate: string) => {
     // Return the date in its original format (MM-DD-YYYY)
     if (!inputDate || !inputDate.match(/^\d{2}-\d{2}-\d{4}$/)) {
@@ -144,20 +110,6 @@ export default function TimesheetViewPage() {
     }
 
     return inputDate // Keep the original MM-DD-YYYY format
-  }
-
-  const handleDateSelect = (
-    selectedDate: Date,
-    setDateFn: React.Dispatch<React.SetStateAction<string>>,
-    setShowCalendarFn: React.Dispatch<React.SetStateAction<boolean>>,
-  ) => {
-    // Format as MM-DD-YYYY
-    const month = String(selectedDate.getMonth() + 1).padStart(2, "0")
-    const day = String(selectedDate.getDate()).padStart(2, "0")
-    const year = selectedDate.getFullYear()
-
-    setDateFn(`${month}-${day}-${year}`)
-    setShowCalendarFn(false)
   }
 
   const handleTimesheetSubmit = async (e: React.FormEvent) => {
@@ -196,36 +148,61 @@ export default function TimesheetViewPage() {
       console.log("PM API request URL:", pmApiUrl)
       const pmResponse = await fetch(pmApiUrl)
 
-      if (!amResponse.ok && !pmResponse.ok) {
-        if (amResponse.status === 404 && pmResponse.status === 404) {
-          throw new Error("No timesheet found for this user and date range")
-        }
-        throw new Error(`Error fetching timesheet data`)
-      }
+      let amDataResult = null
+      let pmDataResult = null
+      let noDataFound = false
 
+      // Process AM response
       if (amResponse.ok) {
-        const amData = await amResponse.json()
-        console.log("AM API response data:", amData)
-        setAMData(amData)
+        const amResponseData = await amResponse.json()
+        console.log("AM API response data:", amResponseData)
+
+        // Check for the specific error message
+        if (amResponseData.message === "No data found for the given date range.") {
+          console.log("AM API returned no data message")
+          noDataFound = true
+          // Store the exact message from the API
+          setError(amResponseData.message)
+        } else {
+          amDataResult = amResponseData
+          setAMData(amResponseData)
+        }
+      } else if (amResponse.status === 404) {
+        noDataFound = true
       }
 
+      // Process PM response
       if (pmResponse.ok) {
-        const pmData = await pmResponse.json()
-        console.log("PM API response data:", pmData)
-        setPMData(pmData)
+        const pmResponseData = await pmResponse.json()
+        console.log("PM API response data:", pmResponseData)
+
+        // Check for the specific error message
+        if (pmResponseData.message === "No data found for the given date range.") {
+          console.log("PM API returned no data message")
+          noDataFound = true
+          // Store the exact message from the API
+          setError(pmResponseData.message)
+        } else {
+          pmDataResult = pmResponseData
+          setPMData(pmResponseData)
+        }
+      } else if (pmResponse.status === 404) {
+        noDataFound = true
       }
 
       // Log what data we actually received
-      console.log("AM data received:", amData?.data?.length || 0, "entries")
-      console.log("PM data received:", pmData?.data?.length || 0, "entries")
+      console.log("AM data received:", amDataResult?.data?.length || 0, "entries")
+      console.log("PM data received:", pmDataResult?.data?.length || 0, "entries")
 
-      // Only show error if both AM and PM requests failed with 404
-      if (amResponse.status === 404 && pmResponse.status === 404) {
+      // If both responses indicate no data, show an error
+      if (
+        ((!amDataResult || amDataResult.data?.length === 0) && (!pmDataResult || pmDataResult.data?.length === 0)) ||
+        noDataFound
+      ) {
         throw new Error("No timesheet data found for this user and date range")
       }
 
-      // If we got here, at least one of the requests succeeded or failed with a different error
-      // We'll display whatever data we have (if any)
+      // If we got here, at least one of the requests succeeded with data
     } catch (error) {
       console.error("Error fetching timesheet:", error)
       setError(error instanceof Error ? error.message : "Failed to fetch timesheet")
@@ -282,6 +259,18 @@ export default function TimesheetViewPage() {
 
       const data = await matrixResponse.json()
       console.log("Matrix API response data:", data)
+
+      // Check for the specific error message
+      if (data.message === "No data found for the given date range.") {
+        setMatrixError(data.message)
+        throw new Error(data.message)
+      }
+
+      // Check if data is empty
+      if (!data.data || data.data.length === 0) {
+        throw new Error("No performance matrices found for this user and date range")
+      }
+
       setMatrixData(data)
     } catch (error) {
       console.error("Error fetching performance matrices:", error)
@@ -295,68 +284,6 @@ export default function TimesheetViewPage() {
       setIsMatrixLoading(false)
     }
   }
-
-  // Generate calendar days for current month
-  const generateCalendar = (selectedMonth = new Date().getMonth(), selectedYear = new Date().getFullYear()) => {
-    const currentMonth = selectedMonth
-    const currentYear = selectedYear
-
-    // Get first day of month and total days in month
-    const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay()
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
-
-    const days = []
-    // Add empty cells for days before the first day of month
-    for (let i = 0; i < firstDayOfMonth; i++) {
-      days.push(<div key={`empty-${i}`} className="w-8 h-8"></div>)
-    }
-
-    // Add days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(currentYear, currentMonth, day)
-      days.push(
-        <button
-          key={day}
-          type="button"
-          onClick={() => {
-            if (showStartCalendar) {
-              handleDateSelect(date, setStartDate, setShowStartCalendar)
-            } else if (showEndCalendar) {
-              handleDateSelect(date, setEndDate, setShowEndCalendar)
-            } else if (showMatrixStartCalendar) {
-              handleDateSelect(date, setMatrixStartDate, setShowMatrixStartCalendar)
-            } else if (showMatrixEndCalendar) {
-              handleDateSelect(date, setMatrixEndDate, setShowMatrixEndCalendar)
-            }
-          }}
-          className="w-8 h-8 rounded-full hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-primary"
-        >
-          {day}
-        </button>,
-      )
-    }
-
-    return days
-  }
-
-  const monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ]
-
-  const today = new Date()
-  const currentMonth = today.getMonth()
-  const currentYear = today.getFullYear()
 
   // Helper function to get color class based on progress value
   const getProgressColorClass = (progress: string) => {
@@ -654,114 +581,10 @@ export default function TimesheetViewPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Start Date */}
-                  <div className="flex flex-col space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <CalendarIcon className="h-4 w-4 text-gray-500" />
-                      <label htmlFor="startDate" className="text-sm font-medium">
-                        Start Date (MM-DD-YYYY)
-                      </label>
-                    </div>
-                    <div className="flex w-full items-center space-x-2 relative">
-                      <Input
-                        id="startDate"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        placeholder="MM-DD-YYYY"
-                        pattern="\d{2}-\d{2}-\d{4}"
-                        required
-                        className="w-full"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => {
-                          setShowStartCalendar(!showStartCalendar)
-                          setShowEndCalendar(false)
-                        }}
-                        className="px-2"
-                      >
-                        <CalendarIcon className="h-4 w-4" />
-                      </Button>
-
-                      {showStartCalendar && (
-                        <div
-                          ref={startCalendarRef}
-                          className="absolute right-0 top-full mt-1 bg-white border rounded-md shadow-lg z-10 p-2"
-                        >
-                          <div className="text-center font-medium mb-2">
-                            {monthNames[currentMonth]} {currentYear}
-                          </div>
-                          <div className="grid grid-cols-7 gap-1 text-center">
-                            {/* Day headers */}
-                            {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
-                              <div key={day} className="text-xs font-medium text-gray-500">
-                                {day}
-                              </div>
-                            ))}
-
-                            {/* Calendar days */}
-                            {generateCalendar()}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <DatePicker value={startDate} onChange={setStartDate} label="Start Date (MM-DD-YYYY)" />
 
                   {/* End Date */}
-                  <div className="flex flex-col space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <CalendarIcon className="h-4 w-4 text-gray-500" />
-                      <label htmlFor="endDate" className="text-sm font-medium">
-                        End Date (MM-DD-YYYY)
-                      </label>
-                    </div>
-                    <div className="flex w-full items-center space-x-2 relative">
-                      <Input
-                        id="endDate"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        placeholder="MM-DD-YYYY"
-                        pattern="\d{2}-\d{2}-\d{4}"
-                        required
-                        className="w-full"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => {
-                          setShowEndCalendar(!showEndCalendar)
-                          setShowStartCalendar(false)
-                        }}
-                        className="px-2"
-                      >
-                        <CalendarIcon className="h-4 w-4" />
-                      </Button>
-
-                      {showEndCalendar && (
-                        <div
-                          ref={endCalendarRef}
-                          className="absolute right-0 top-full mt-1 bg-white border rounded-md shadow-lg z-10 p-2"
-                        >
-                          <div className="text-center font-medium mb-2">
-                            {monthNames[currentMonth]} {currentYear}
-                          </div>
-                          <div className="grid grid-cols-7 gap-1 text-center">
-                            {/* Day headers */}
-                            {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
-                              <div key={day} className="text-xs font-medium text-gray-500">
-                                {day}
-                              </div>
-                            ))}
-
-                            {/* Calendar days */}
-                            {generateCalendar()}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <DatePicker value={endDate} onChange={setEndDate} label="End Date (MM-DD-YYYY)" />
                 </div>
 
                 {error && <div className="text-red-500 text-sm py-1">{error}</div>}
@@ -1027,114 +850,10 @@ export default function TimesheetViewPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Start Date */}
-                  <div className="flex flex-col space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <CalendarIcon className="h-4 w-4 text-gray-500" />
-                      <label htmlFor="matrixStartDate" className="text-sm font-medium">
-                        Start Date (MM-DD-YYYY)
-                      </label>
-                    </div>
-                    <div className="flex w-full items-center space-x-2 relative">
-                      <Input
-                        id="matrixStartDate"
-                        value={matrixStartDate}
-                        onChange={(e) => setMatrixStartDate(e.target.value)}
-                        placeholder="MM-DD-YYYY"
-                        pattern="\d{2}-\d{2}-\d{4}"
-                        required
-                        className="w-full"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => {
-                          setShowMatrixStartCalendar(!showMatrixStartCalendar)
-                          setShowMatrixEndCalendar(false)
-                        }}
-                        className="px-2"
-                      >
-                        <CalendarIcon className="h-4 w-4" />
-                      </Button>
-
-                      {showMatrixStartCalendar && (
-                        <div
-                          ref={matrixStartCalendarRef}
-                          className="absolute right-0 top-full mt-1 bg-white border rounded-md shadow-lg z-10 p-2"
-                        >
-                          <div className="text-center font-medium mb-2">
-                            {monthNames[currentMonth]} {currentYear}
-                          </div>
-                          <div className="grid grid-cols-7 gap-1 text-center">
-                            {/* Day headers */}
-                            {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
-                              <div key={day} className="text-xs font-medium text-gray-500">
-                                {day}
-                              </div>
-                            ))}
-
-                            {/* Calendar days */}
-                            {generateCalendar()}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <DatePicker value={matrixStartDate} onChange={setMatrixStartDate} label="Start Date (MM-DD-YYYY)" />
 
                   {/* End Date */}
-                  <div className="flex flex-col space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <CalendarIcon className="h-4 w-4 text-gray-500" />
-                      <label htmlFor="matrixEndDate" className="text-sm font-medium">
-                        End Date (MM-DD-YYYY)
-                      </label>
-                    </div>
-                    <div className="flex w-full items-center space-x-2 relative">
-                      <Input
-                        id="matrixEndDate"
-                        value={matrixEndDate}
-                        onChange={(e) => setMatrixEndDate(e.target.value)}
-                        placeholder="MM-DD-YYYY"
-                        pattern="\d{2}-\d{2}-\d{4}"
-                        required
-                        className="w-full"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => {
-                          setShowMatrixEndCalendar(!showMatrixEndCalendar)
-                          setShowMatrixStartCalendar(false)
-                        }}
-                        className="px-2"
-                      >
-                        <CalendarIcon className="h-4 w-4" />
-                      </Button>
-
-                      {showMatrixEndCalendar && (
-                        <div
-                          ref={matrixEndCalendarRef}
-                          className="absolute right-0 top-full mt-1 bg-white border rounded-md shadow-lg z-10 p-2"
-                        >
-                          <div className="text-center font-medium mb-2">
-                            {monthNames[currentMonth]} {currentYear}
-                          </div>
-                          <div className="grid grid-cols-7 gap-1 text-center">
-                            {/* Day headers */}
-                            {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
-                              <div key={day} className="text-xs font-medium text-gray-500">
-                                {day}
-                              </div>
-                            ))}
-
-                            {/* Calendar days */}
-                            {generateCalendar()}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <DatePicker value={matrixEndDate} onChange={setMatrixEndDate} label="End Date (MM-DD-YYYY)" />
                 </div>
 
                 {matrixError && <div className="text-red-500 text-sm py-1">{matrixError}</div>}

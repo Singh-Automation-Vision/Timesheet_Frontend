@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { Eye, EyeOff, Loader2, UserPlus, UserMinus, RefreshCw, Edit } from "lucide-react"
 import { API_BASE_URL } from "@/lib/api-config"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import UserView from "./UserView"
 
 interface User {
   name: string
@@ -21,7 +22,12 @@ interface User {
   password?: string
 }
 
-type Mode = "none" | "add" | "remove" | "edit" | "edit-form"
+type Mode = "none" | "add" | "remove" | "edit" | "edit-form" | "view"
+
+interface UserViewProps {
+  onBack: () => void
+  users: User[]
+}
 
 export default function UserManagement() {
   const [mode, setMode] = useState<Mode>("none")
@@ -368,6 +374,10 @@ export default function UserManagement() {
             <Edit className="h-4 w-4" />
             Edit User
           </Button>
+          <Button onClick={() => setMode("view")} variant="outline" className="flex items-center gap-2">
+            <Eye className="h-4 w-4" />
+            View User
+          </Button>
           <Button onClick={() => setMode("remove")} variant="destructive" className="flex items-center gap-2">
             <UserMinus className="h-4 w-4" />
             Remove User
@@ -427,7 +437,7 @@ export default function UserManagement() {
             <SelectTrigger>
               <SelectValue placeholder="Select Role" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-h-[200px] overflow-auto">
               <SelectItem value="user">User</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
             </SelectContent>
@@ -436,7 +446,7 @@ export default function UserManagement() {
             <SelectTrigger>
               <SelectValue placeholder="Select Country" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-h-[200px] overflow-auto">
               <SelectItem value="India">India</SelectItem>
               <SelectItem value="USA">USA</SelectItem>
             </SelectContent>
@@ -549,7 +559,7 @@ export default function UserManagement() {
             <SelectTrigger>
               <SelectValue placeholder="Select Role" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-h-[200px] overflow-auto">
               <SelectItem value="user">User</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
             </SelectContent>
@@ -558,7 +568,7 @@ export default function UserManagement() {
             <SelectTrigger>
               <SelectValue placeholder="Select Country" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-h-[200px] overflow-auto">
               <SelectItem value="India">India</SelectItem>
               <SelectItem value="USA">USA</SelectItem>
             </SelectContent>
@@ -620,59 +630,63 @@ export default function UserManagement() {
         </form>
       )}
 
-      {/* Members Table */}
-      <div className="mt-8">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">Members</h3>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchUsers}
-            disabled={isLoadingUsers}
-            className="flex items-center gap-2"
-          >
-            {isLoadingUsers ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Refresh
-          </Button>
-        </div>
+      {mode === "view" && <UserView onBack={() => setMode("none")} />}
 
-        {isLoadingUsers ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      {/* Members Table - Only show when not in view mode */}
+      {mode !== "view" && (
+        <div className="mt-8">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">Members</h3>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchUsers}
+              disabled={isLoadingUsers}
+              className="flex items-center gap-2"
+            >
+              {isLoadingUsers ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Refresh
+            </Button>
           </div>
-        ) : (
-          <div className="border rounded-md">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Designation</TableHead>
-                  <TableHead>Manager</TableHead>
-                  <TableHead>Username</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.length === 0 ? (
+
+          {isLoadingUsers ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="border rounded-md">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
-                      No members found
-                    </TableCell>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Designation</TableHead>
+                    <TableHead>Manager</TableHead>
+                    <TableHead>Username</TableHead>
                   </TableRow>
-                ) : (
-                  users.map((user) => (
-                    <TableRow key={user.email}>
-                      <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>{user.designation || "-"}</TableCell>
-                      <TableCell>{user.manager || "-"}</TableCell>
-                      <TableCell>{user.email}</TableCell>
+                </TableHeader>
+                <TableBody>
+                  {users.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                        No members found
+                      </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </div>
+                  ) : (
+                    users.map((user) => (
+                      <TableRow key={user.email}>
+                        <TableCell className="font-medium">{user.name}</TableCell>
+                        <TableCell>{user.designation || "-"}</TableCell>
+                        <TableCell>{user.manager || "-"}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

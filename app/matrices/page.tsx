@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
@@ -21,30 +21,10 @@ export default function MatricesPage() {
   const { toast } = useToast()
   const { user } = useAuth()
 
-  const fetchRatings = useCallback(async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/matrices`)
-      if (response.ok) {
-        const data = await response.json()
-        setRatings(data.ratings || {})
-      } else {
-        throw new Error("Failed to fetch ratings")
-      }
-    } catch (error) {
-      console.error("Error fetching ratings:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load ratings. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }, [toast])
-
   useEffect(() => {
-    fetchRatings()
-  }, [fetchRatings])
+    // Initialize with empty ratings
+    setIsLoading(false)
+  }, [])
 
   const handleRatingChange = (criterion: string, value: string) => {
     setRatings((prev) => ({ ...prev, [criterion]: value }))
