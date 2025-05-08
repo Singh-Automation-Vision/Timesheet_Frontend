@@ -59,4 +59,3 @@ export function SplashScreen() {
     </div>
   )
 }
-

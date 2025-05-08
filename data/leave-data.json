@@ -1,0 +1,15 @@
+{
+  "users": [
+    {
+      "name": "John Doe",
+      "totalLeaves": 20,
+      "usedLeaves": 5
+    },
+    {
+      "name": "Jane Smith",
+      "totalLeaves": 20,
+      "usedLeaves": 8
+    }
+  ],
+  "defaultTotalLeaves": 20
+}

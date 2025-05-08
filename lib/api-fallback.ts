@@ -61,4 +61,3 @@ export async function shouldUseFallback() {
     return true // Use fallback
   }
 }
-

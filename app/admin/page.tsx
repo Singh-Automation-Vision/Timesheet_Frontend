@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
 import UserManagement from "@/components/admin/UserManagement"
 import ProjectManagement from "@/components/admin/ProjectManagement"
+import HRManagement from "@/components/admin/HRManagement"
 import { useAuth } from "@/lib/auth-context"
 
 export default function AdminPanel() {
@@ -39,6 +40,7 @@ export default function AdminPanel() {
         <TabsList className="mb-4">
           <TabsTrigger value="users">User Management</TabsTrigger>
           <TabsTrigger value="projects">Project Management</TabsTrigger>
+          <TabsTrigger value="hr">HR Management</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users">
@@ -64,8 +66,19 @@ export default function AdminPanel() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="hr">
+          <Card>
+            <CardHeader>
+              <CardTitle>HR Management</CardTitle>
+              <CardDescription>Manage leave applications and HR functions</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <HRManagement />
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   )
 }
-

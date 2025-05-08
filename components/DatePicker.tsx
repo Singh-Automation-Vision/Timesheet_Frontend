@@ -204,4 +204,3 @@ export default function DatePicker({
     </div>
   )
 }
-

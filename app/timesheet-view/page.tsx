@@ -980,4 +980,3 @@ export default function TimesheetViewPage() {
     </div>
   )
 }
-

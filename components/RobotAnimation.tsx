@@ -98,4 +98,3 @@ export function RobotAnimation() {
 
   return <div ref={mountRef} className="w-[300px] h-[300px] mx-auto" />
 }
-

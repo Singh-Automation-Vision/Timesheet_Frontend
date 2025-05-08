@@ -109,4 +109,3 @@ export function SplashScreen({ onComplete }: { onComplete: () => void }) {
     </div>
   )
 }
-

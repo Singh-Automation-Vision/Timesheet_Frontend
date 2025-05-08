@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { Home, ClipboardList, BarChart2, LogOut, Search } from "lucide-react"
+import { Home, ClipboardList, BarChart2, LogOut, Search, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export default function Navbar() {
@@ -78,6 +78,10 @@ export default function Navbar() {
               </>
             ) : (
               <>
+                <NavLink href="/leave-request" active={pathname === "/leave-request"}>
+                  <Calendar className="w-4 h-4 mr-1" />
+                  Leave Request
+                </NavLink>
                 <NavLink href="/timesheet" active={pathname === "/timesheet"}>
                   <ClipboardList className="w-4 h-4 mr-1" />
                   Timesheet
@@ -116,4 +120,3 @@ function NavLink({ href, active, children }: { href: string; active: boolean; ch
     </Link>
   )
 }
-

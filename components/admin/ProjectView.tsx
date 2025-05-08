@@ -333,4 +333,3 @@ export default function ProjectView({ onBack }: { onBack: () => void }) {
     </div>
   )
 }
-

@@ -105,4 +105,3 @@ ToastDescription.displayName = ToastPrimitives.Description.displayName
 export { ToastProvider, ToastViewport, Toast, ToastTitle, ToastDescription, ToastClose, ToastAction }
 
 export type { ToastActionElement, ToastProps }
-
