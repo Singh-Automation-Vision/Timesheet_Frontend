@@ -54,6 +54,14 @@ interface MatrixEntry {
   red_count?: number
 }
 
+// Safety Matrix Entry Interface
+interface SafetyEntry {
+  date: string
+  employee_name: string
+  shift: string
+  safety_matrix?: Record<string, string> // Updated from safety_ratings to safety_matrix
+}
+
 // API Response Interfaces
 interface AMTimesheetResponse {
   data: AMEntry[]
@@ -70,9 +78,14 @@ interface MatrixResponse {
   message: string
 }
 
+interface SafetyResponse {
+  data: SafetyEntry[]
+  message: string
+}
+
 export default function TimesheetViewPage() {
   // Tab state
-  const [activeTab, setActiveTab] = useState<"timesheet" | "matrices">("timesheet")
+  const [activeTab, setActiveTab] = useState<"timesheet" | "matrices" | "safety">("timesheet")
   const [timesheetTab, setTimesheetTab] = useState<"am" | "pm">("am")
 
   // Form states
@@ -82,17 +95,23 @@ export default function TimesheetViewPage() {
   const [matrixUsername, setMatrixUsername] = useState("")
   const [matrixStartDate, setMatrixStartDate] = useState("")
   const [matrixEndDate, setMatrixEndDate] = useState("")
+  const [safetyUsername, setSafetyUsername] = useState("")
+  const [safetyStartDate, setSafetyStartDate] = useState("")
+  const [safetyEndDate, setSafetyEndDate] = useState("")
 
   // Loading and error states
   const [isLoading, setIsLoading] = useState(false)
   const [isMatrixLoading, setIsMatrixLoading] = useState(false)
+  const [isSafetyLoading, setIsSafetyLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [matrixError, setMatrixError] = useState<string | null>(null)
+  const [safetyError, setSafetyError] = useState<string | null>(null)
 
   // Data states
   const [amData, setAMData] = useState<AMTimesheetResponse | null>(null)
   const [pmData, setPMData] = useState<PMTimesheetResponse | null>(null)
   const [matrixData, setMatrixData] = useState<MatrixResponse | null>(null)
+  const [safetyData, setSafetyData] = useState<SafetyResponse | null>(null)
 
   // Toast
   const { toast } = useToast()
@@ -101,6 +120,7 @@ export default function TimesheetViewPage() {
   const [amCurrentPage, setAMCurrentPage] = useState(0)
   const [pmCurrentPage, setPMCurrentPage] = useState(0)
   const [matrixCurrentPage, setMatrixCurrentPage] = useState(0)
+  const [safetyCurrentPage, setSafetyCurrentPage] = useState(0)
   const entriesPerPage = 3
 
   const formatDateForDisplay = (inputDate: string) => {
@@ -285,6 +305,70 @@ export default function TimesheetViewPage() {
     }
   }
 
+  const handleSafetySubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSafetyError(null)
+    setSafetyData(null)
+    setSafetyCurrentPage(0)
+
+    if (!safetyUsername || !safetyStartDate || !safetyEndDate) {
+      setSafetyError("Please enter username, start date, and end date")
+      return
+    }
+
+    if (!safetyStartDate.match(/^\d{2}-\d{2}-\d{4}$/) || !safetyEndDate.match(/^\d{2}-\d{2}-\d{4}$/)) {
+      setSafetyError("Dates must be in MM-DD-YYYY format")
+      return
+    }
+
+    setIsSafetyLoading(true)
+
+    try {
+      console.log("Safety form submission data:")
+      console.log("Username:", safetyUsername)
+      console.log("Start Date:", safetyStartDate)
+      console.log("End Date:", safetyEndDate)
+
+      // Fetch safety data
+      const safetyApiUrl = `${API_BASE_URL}/api/safety?employee_name=${safetyUsername}&start_date=${safetyStartDate}&end_date=${safetyEndDate}`
+      console.log("Safety API request URL:", safetyApiUrl)
+      const safetyResponse = await fetch(safetyApiUrl)
+
+      if (!safetyResponse.ok) {
+        if (safetyResponse.status === 404) {
+          throw new Error("No safety matrices found for this user and date range")
+        }
+        throw new Error(`Error fetching safety matrices: ${safetyResponse.status}`)
+      }
+
+      const data = await safetyResponse.json()
+      console.log("Safety API response data:", data)
+
+      // Check for the specific error message
+      if (data.message === "No data found for the given date range.") {
+        setSafetyError(data.message)
+        throw new Error(data.message)
+      }
+
+      // Check if data is empty
+      if (!data.data || data.data.length === 0) {
+        throw new Error("No safety matrices found for this user and date range")
+      }
+
+      setSafetyData(data)
+    } catch (error) {
+      console.error("Error fetching safety matrices:", error)
+      setSafetyError(error instanceof Error ? error.message : "Failed to fetch safety matrices")
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to fetch safety matrices",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSafetyLoading(false)
+    }
+  }
+
   // Helper function to get color class based on progress value
   const getProgressColorClass = (progress: string) => {
     const lowerProgress = progress.toLowerCase()
@@ -340,29 +424,40 @@ export default function TimesheetViewPage() {
   const matrixEndIndex = Math.min(matrixStartIndex + entriesPerPage, matrixTotalEntries)
   const matrixCurrentEntries = matrixData?.data?.slice(matrixStartIndex, matrixEndIndex) || []
 
+  // Calculate pagination for safety data
+  const safetyTotalEntries = safetyData?.data?.length || 0
+  const safetyTotalPages = Math.ceil(safetyTotalEntries / entriesPerPage)
+  const safetyStartIndex = safetyCurrentPage * entriesPerPage
+  const safetyEndIndex = Math.min(safetyStartIndex + entriesPerPage, safetyTotalEntries)
+  const safetyCurrentEntries = safetyData?.data?.slice(safetyStartIndex, safetyEndIndex) || []
+
   // Handle pagination navigation
-  const goToNextPage = (type: "am" | "pm" | "matrix") => {
+  const goToNextPage = (type: "am" | "pm" | "matrix" | "safety") => {
     if (type === "am" && amCurrentPage < amTotalPages - 1) {
       setAMCurrentPage(amCurrentPage + 1)
     } else if (type === "pm" && pmCurrentPage < pmTotalPages - 1) {
       setPMCurrentPage(pmCurrentPage + 1)
     } else if (type === "matrix" && matrixCurrentPage < matrixTotalPages - 1) {
       setMatrixCurrentPage(matrixCurrentPage + 1)
+    } else if (type === "safety" && safetyCurrentPage < safetyTotalPages - 1) {
+      setSafetyCurrentPage(safetyCurrentPage + 1)
     }
   }
 
-  const goToPrevPage = (type: "am" | "pm" | "matrix") => {
+  const goToPrevPage = (type: "am" | "pm" | "matrix" | "safety") => {
     if (type === "am" && amCurrentPage > 0) {
       setAMCurrentPage(amCurrentPage - 1)
     } else if (type === "pm" && pmCurrentPage > 0) {
       setPMCurrentPage(pmCurrentPage - 1)
     } else if (type === "matrix" && matrixCurrentPage > 0) {
       setMatrixCurrentPage(matrixCurrentPage - 1)
+    } else if (type === "safety" && safetyCurrentPage > 0) {
+      setSafetyCurrentPage(safetyCurrentPage - 1)
     }
   }
 
   // Download as PDF
-  const handleDownloadPDF = (type: "am" | "pm" | "matrix") => {
+  const handleDownloadPDF = (type: "am" | "pm" | "matrix" | "safety") => {
     try {
       const doc = new jsPDF()
 
@@ -525,6 +620,72 @@ export default function TimesheetViewPage() {
 
         // Save the PDF
         doc.save(`${matrixUsername}_performance_matrices_${matrixStartDate}_to_${matrixEndDate}.pdf`)
+      } else if (type === "safety") {
+        if (!safetyData || !safetyData.data || safetyData.data.length === 0) {
+          toast({
+            title: "Error",
+            description: "No safety data available to download",
+            variant: "destructive",
+          })
+          return
+        }
+
+        doc.text(`Safety Matrices Report for ${safetyUsername}`, 14, 20)
+        doc.setFontSize(12)
+        doc.text(`Date Range: ${safetyStartDate} to ${safetyEndDate}`, 14, 30)
+
+        let yPos = 40
+
+        // Process each safety entry
+        safetyData.data.forEach((entry, index) => {
+          // Add date header
+          doc.setFontSize(14)
+          doc.text(`Date: ${formatDateForDisplay(entry.date || "")}`, 14, yPos)
+          yPos += 10
+
+          // Add employee info
+          doc.setFontSize(12)
+          doc.text(`Employee: ${entry.employee_name}`, 14, yPos)
+          yPos += 7
+
+          if (entry.shift) {
+            doc.text(`Shift: ${entry.shift}`, 14, yPos)
+            yPos += 10
+          }
+
+          if (entry.safety_matrix && Object.keys(entry.safety_matrix).length > 0) {
+            const tableData = Object.entries(entry.safety_matrix).map(([question, rating]) => [question, rating])
+
+            autoTable(doc, {
+              startY: yPos,
+              head: [["Question", "Rating"]],
+              body: tableData,
+            })
+
+            yPos = (doc as any).lastAutoTable.finalY + 10
+
+            // Add red count if safety_matrix exists
+            doc.setFontSize(12)
+            const redCount = calculateRedCount(entry.safety_matrix)
+            doc.text(`Red Count: ${redCount}`, 14, yPos)
+            yPos += 10
+          } else {
+            // If no safety_matrix, just show the basic info
+            yPos += 10
+            doc.setFontSize(12)
+            doc.text("No detailed safety ratings available for this date", 14, yPos)
+            yPos += 10
+          }
+
+          // Add page break if not the last entry
+          if (index < safetyData.data.length - 1) {
+            doc.addPage()
+            yPos = 20
+          }
+        })
+
+        // Save the PDF
+        doc.save(`${safetyUsername}_safety_matrices_${safetyStartDate}_to_${safetyEndDate}.pdf`)
       }
 
       toast({
@@ -545,13 +706,17 @@ export default function TimesheetViewPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-[#00FF00]">Performance Tracker</h1>
-        <p className="text-gray-600">View timesheet entries and performance matrices</p>
+        <p className="text-gray-600">View timesheet entries, performance matrices, and safety matrices</p>
       </div>
 
-      <Tabs defaultValue="timesheet" onValueChange={(value) => setActiveTab(value as "timesheet" | "matrices")}>
+      <Tabs
+        defaultValue="timesheet"
+        onValueChange={(value) => setActiveTab(value as "timesheet" | "matrices" | "safety")}
+      >
         <TabsList className="mb-4">
           <TabsTrigger value="timesheet">Timesheet Lookup</TabsTrigger>
           <TabsTrigger value="matrices">Performance Matrices</TabsTrigger>
+          <TabsTrigger value="safety">Safety Matrices</TabsTrigger>
         </TabsList>
 
         {/* Timesheet Lookup Tab */}
@@ -963,6 +1128,169 @@ export default function TimesheetViewPage() {
                           size="sm"
                           onClick={() => goToNextPage("matrix")}
                           disabled={matrixCurrentPage === matrixTotalPages - 1}
+                          className="flex items-center"
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Safety Matrices Tab */}
+        <TabsContent value="safety">
+          <Card>
+            <CardHeader>
+              <CardTitle>Safety Matrices Lookup</CardTitle>
+              <CardDescription>Enter username and date range to view safety matrices</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSafetySubmit} className="space-y-4">
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <User className="h-4 w-4 text-gray-500" />
+                    <label htmlFor="safetyUsername" className="text-sm font-medium">
+                      Username
+                    </label>
+                  </div>
+                  <Input
+                    id="safetyUsername"
+                    value={safetyUsername}
+                    onChange={(e) => setSafetyUsername(e.target.value)}
+                    placeholder="Enter username"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Start Date */}
+                  <DatePicker value={safetyStartDate} onChange={setSafetyStartDate} label="Start Date (MM-DD-YYYY)" />
+
+                  {/* End Date */}
+                  <DatePicker value={safetyEndDate} onChange={setSafetyEndDate} label="End Date (MM-DD-YYYY)" />
+                </div>
+
+                {safetyError && <div className="text-red-500 text-sm py-1">{safetyError}</div>}
+
+                <Button type="submit" disabled={isSafetyLoading} className="w-full">
+                  {isSafetyLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    "View Safety Matrices"
+                  )}
+                </Button>
+              </form>
+
+              {safetyData?.data?.length > 0 && (
+                <div className="mt-8 border-t pt-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Safety Matrices</h3>
+                    <Button
+                      onClick={() => handleDownloadPDF("safety")}
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download Safety Matrices
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:space-x-4 text-sm text-gray-600 mb-4">
+                    <p>
+                      <span className="font-medium">Username:</span> {safetyUsername}
+                    </p>
+                    <p>
+                      <span className="font-medium">Date Range:</span> {safetyStartDate} to {safetyEndDate}
+                    </p>
+                    <p>
+                      <span className="font-medium">Showing:</span> {safetyStartIndex + 1}-{safetyEndIndex} of{" "}
+                      {safetyTotalEntries} entries
+                    </p>
+                  </div>
+
+                  <div className="space-y-6">
+                    {safetyCurrentEntries.map((entry, entryIndex) => (
+                      <div key={entryIndex} className="mb-8 border rounded-md p-4">
+                        <h4 className="text-md font-semibold mb-4">Date: {formatDateForDisplay(entry.date || "")}</h4>
+
+                        <div className="mb-4">
+                          <p className="text-sm">
+                            <span className="font-medium">Employee:</span> {entry.employee_name}
+                          </p>
+                          {entry.shift && (
+                            <p className="text-sm mt-1">
+                              <span className="font-medium">Shift:</span> {entry.shift}
+                            </p>
+                          )}
+                        </div>
+
+                        {entry.safety_matrix && Object.keys(entry.safety_matrix).length > 0 ? (
+                          <div className="overflow-x-auto">
+                            <table className="w-full border-collapse">
+                              <thead>
+                                <tr className="bg-gray-50">
+                                  <th className="border px-4 py-2 text-left">Question</th>
+                                  <th className="border px-4 py-2 text-left">Rating</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {Object.entries(entry.safety_matrix).map(([question, rating], index) => (
+                                  <tr key={index} className="border-b">
+                                    <td className="border px-4 py-2">{question}</td>
+                                    <td className="border px-4 py-2">
+                                      <div className="flex items-center">
+                                        <div className={`w-4 h-4 rounded-full mr-2 ${getProgressColorClass(rating)}`} />
+                                        {rating}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            <div className="mt-4">
+                              <p className="font-medium">
+                                Red Count:{" "}
+                                <span className="text-red-500">{calculateRedCount(entry.safety_matrix)}</span>
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="py-4 text-center text-gray-500">
+                            Basic safety data available. No detailed ratings found for this date.
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    {/* Pagination controls for Safety */}
+                    {safetyTotalPages > 1 && (
+                      <div className="flex justify-center items-center mt-6 space-x-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => goToPrevPage("safety")}
+                          disabled={safetyCurrentPage === 0}
+                          className="flex items-center"
+                        >
+                          <ChevronLeft className="h-4 w-4 mr-1" />
+                          Previous
+                        </Button>
+                        <span className="text-sm">
+                          Page {safetyCurrentPage + 1} of {safetyTotalPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => goToNextPage("safety")}
+                          disabled={safetyCurrentPage === safetyTotalPages - 1}
                           className="flex items-center"
                         >
                           Next

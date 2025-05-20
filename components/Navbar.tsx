@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { Home, ClipboardList, BarChart2, LogOut, Search, Calendar } from "lucide-react"
+import { Home, ClipboardList, BarChart2, LogOut, Search, Calendar, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export default function Navbar() {
@@ -85,6 +85,10 @@ export default function Navbar() {
                 <NavLink href="/timesheet" active={pathname === "/timesheet"}>
                   <ClipboardList className="w-4 h-4 mr-1" />
                   Timesheet
+                </NavLink>
+                <NavLink href="/safety" active={pathname === "/safety"}>
+                  <Shield className="w-4 h-4 mr-1" />
+                  Safety
                 </NavLink>
                 <NavLink href="/matrices" active={pathname === "/matrices"}>
                   <BarChart2 className="w-4 h-4 mr-1" />
