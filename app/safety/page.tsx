@@ -16,7 +16,7 @@ const safetyQuestions = [
   "Is your work area clean, organized, and free from slip/trip hazards?",
   "Are all emergency stop buttons and safety interlocks functional and accessible?",
   "Are all wires, cables, and hoses properly managed to avoid entanglement or tripping?",
-  "Have you seen or experienced anything unsafe today that should be reported?",
+  "Have you noticed safety protocols being properly followed around you today?",
   "Have you reviewed and acknowledged today's safety briefing or posted instructions?",
 ]
 
